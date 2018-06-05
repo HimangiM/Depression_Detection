@@ -11,7 +11,15 @@ import numpy as np
 #     def __init__(self, hidden_size):
 #         self.hidden_size = hidden_size
 #         self.inp = nn.Linear(1, hidden_size)
-model = nn.LSTM(5,5,5)
+class RNN(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, num_classes):
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.LSTM = nn.LSTM(input_size, hidden_size, output_size, batch_first = True)
+        self.fcc = nn.Linear(hidden_size, num_classes) 
+    
+    def forward(self, x):
+        h0 = torch.zeros()
 
 # create input numpy 2d array for tensor
 _input = np.zeros([500,378], dtype='float32')
