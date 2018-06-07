@@ -16,22 +16,29 @@ from torch.utils.data.dataset import Dataset
 import torchvision
 import torchvision.transforms as transforms
 import torch.utils.data as data_utils
+import time
 
 
 # In[2]:
+
+
+start = time.time()
+
+
+# In[3]:
 
 
 sequence_length = 500
 input_size = 378
 hidden_size = 128
 num_layers = 2 # ?
-num_classes = 2
+num_classes = 2 # Depressed or not depressed
 batch_size = 50
 num_epochs = 10
-learning_rate = 0.001
+learning_rate = 0.01
 
 
-# In[3]:
+# In[4]:
 
 
 class RNN(nn.Module):
@@ -52,7 +59,7 @@ class RNN(nn.Module):
         return out
 
 
-# In[4]:
+# In[5]:
 
 
 class faceFeatures(Dataset):
@@ -74,7 +81,7 @@ class faceFeatures(Dataset):
         return (features, label)
 
 
-# In[5]:
+# In[6]:
 
 
 class concatFrames(Dataset):
@@ -111,7 +118,7 @@ class concatFrames(Dataset):
         return (frame_features, frameself._label) 
 
 
-# In[6]:
+# In[7]:
 
 
 print ("Training data preprocessing....")
@@ -135,7 +142,7 @@ _label_train = (_label_train.type(torch.LongTensor))
 # print (data.__getitem__(0))
 
 
-# In[7]:
+# In[8]:
 
 
 print ("Test data preprocessing....")
@@ -160,7 +167,7 @@ print (_input_test.shape)
 # print (data.__getitem__(0))
 
 
-# In[8]:
+# In[9]:
 
 
 model = RNN(input_size, hidden_size, num_layers, num_classes)
@@ -169,7 +176,7 @@ criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr = learning_rate)
 
 
-# In[11]:
+# In[10]:
 
 
 train = data_utils.TensorDataset(_input_train, _label_train)
@@ -178,25 +185,36 @@ train_loader = data_utils.DataLoader(train, batch_size=batch_size, shuffle=True)
 test = data_utils.TensorDataset(_input_test, _label_test)
 test_loader = data_utils.DataLoader(test, shuffle=True)
 # total_step = len(train_loader)
-# for epoch in range(num_epochs):
+
+epoch_start = time.time()
+loss = 0
+for epoch in range(num_epochs):
 # i is the counter, ith batch, j is the value of batch
-for i,(feature, label) in enumerate(train_loader):
-        feature = feature.reshape(-1, sequence_length, input_size)
-        print (feature.shape)
-        # Forward pass
-        outputs = model(feature)
-        print (outputs.shape)
-        print (label.shape)
-        label = label.reshape(batch_size)
-        loss = criterion(outputs, label)
+    for i,(feature, label) in enumerate(train_loader):
+            feature = feature.reshape(-1, sequence_length, input_size)
+            print (feature.shape)
+            # Forward pass
+            outputs = model(feature)
+            print (outputs.shape)
+            print (label.shape)
+            label = label.reshape(batch_size)
+            loss = criterion(outputs, label)
+
+            # Backward and optimize
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            print ("Loss")
+            print (loss.item())
+            loss = loss + loss.item()
         
-        # Backward and optimize
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-                
-        print ("Loss")
-        print (loss.item())
+    print ("Epoch time")
+    print (time.time() - epoch_start)
+    epoch_start = time.time()
+    
+print ("Mean loss")
+print (loss/num_epochs)
         
 
 with torch.no_grad():
@@ -213,5 +231,10 @@ with torch.no_grad():
     print ("Test accuracy")
     print (correct/total)
         
-        
 
+
+# In[11]:
+
+
+f_time = time.time()-start
+print (f_time)
