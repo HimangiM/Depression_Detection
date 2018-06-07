@@ -21,8 +21,8 @@ import torch.utils.data as data_utils
 # In[2]:
 
 
-sequence_length = 378
-input_size = 500
+sequence_length = 500
+input_size = 378
 hidden_size = 128
 num_layers = 2 # ?
 num_classes = 2
@@ -99,8 +99,8 @@ class concatFrames(Dataset):
             self._label = np.vstack((data.__getitem__()[1], self._label))
             
         self._input = self._input.reshape((len(self.csv_files), 500, 378))
-        self._label = self._label.reshape((len(self.csv_files), 1, 1))
-        print (self._input.shape)
+        self._label = self._label.reshape((len(self.csv_files)))
+        print (self._input.shape, self._label.shape)
         return (self._input, self._label)
 
     # Get the tensor by index
@@ -124,12 +124,14 @@ for filename in os.listdir("./dataset/USC/bad_frames/frames/frames_with_label"):
             csv_files_train.append(file)
 # print (csv_files)
 _input = np.zeros((500, 378), dtype="float32")
-_label = np.zeros((1,1), dtype="int64")
+_label = np.ones((1), dtype="int32")
 
 data = concatFrames(root_dir = "./dataset/USC/bad_frames/frames/frames_with_label/", csv_files = csv_files_train, _input = _input, _label = _label)
 _input, _label = data._concat_()
 _input_train = torch.Tensor(np.array(_input))
 _label_train = torch.Tensor(np.array(_label))
+_label_train = (_label_train.type(torch.LongTensor))
+
 # print (data.__getitem__(0))
 
 
@@ -147,11 +149,13 @@ for filename in os.listdir("./dataset/USC/bad_frames/frames/frames_with_label"):
             
 # print (len(csv_files_test))
 _input_ = np.zeros((500, 378), dtype="float32")
-_label_ = np.zeros((1,1), dtype="int64")
+_label_ = np.zeros((1), dtype="int32")
 data_test = concatFrames(root_dir = "./dataset/USC/bad_frames/frames/frames_with_label/", _input = _input_, _label = _label_, csv_files = csv_files_test)
 _input_test, _label_test = data_test._concat_()
 _input_test = torch.Tensor(np.array(_input_test))
 _label_test = torch.Tensor(np.array(_label_test))
+_label_test = (_label_test.type(torch.LongTensor))
+
 print (_input_test.shape)
 # print (data.__getitem__(0))
 
@@ -181,12 +185,33 @@ for i,(feature, label) in enumerate(train_loader):
         print (feature.shape)
         # Forward pass
         outputs = model(feature)
+        print (outputs.shape)
+        print (label.shape)
+        label = label.reshape(batch_size)
         loss = criterion(outputs, label)
         
         # Backward and optimize
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+                
+        print ("Loss")
+        print (loss.item())
+        
+
+with torch.no_grad():
+    correct = 0
+    total = 0
+    
+    for images, labels in test_loader:
+        images = images.reshape(-1, sequence_length, input_size)
+        outputs = model(images)
+        _, predicted = torch.max(outputs.data, 1)
+        total = total + labels.size(0)
+        correct = correct + (predicted == labels).sum().item()
+    
+    print ("Test accuracy")
+    print (correct/total)
         
         
 
