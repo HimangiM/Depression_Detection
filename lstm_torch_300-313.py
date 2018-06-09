@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[1]:
+# In[144]:
 
 
 from skimage import io
@@ -17,31 +17,32 @@ import torchvision
 import torchvision.transforms as transforms
 import torch.utils.data as data_utils
 import time
+import math
+import pickle as pkl
 
 
-# In[2]:
+# In[145]:
 
 
 start = time.time()
 
 
-# In[3]:
+# In[146]:
 
 
-sequence_length = 6300
+sequence_length = 300
 input_size = 378
 hidden_size = 128
-num_layers = 2 # ?
+num_layers = 2
 num_classes = 2 # Depressed or not depressed
 batch_size = 50
 num_epochs = 10
 learning_rate = 0.01
 rec_dropout = 0.05
-padding_size = 6300
 feature_len = 378
 
 
-# In[4]:
+# In[147]:
 
 
 class RNN(nn.Module):
@@ -62,29 +63,59 @@ class RNN(nn.Module):
         return out
 
 
-# In[5]:
+# In[148]:
 
 
 class faceFeatures(Dataset):
     def __init__(self, root_dir, csv_file, transform=None):
-        self.features_frame = pd.read_csv(root_dir+csv_file)
+        self.features_frame = pd.read_csv(root_dir + csv_file)
         self.transform = transform
 
     def __len__(self):
         return len(self.features_frame)
  
     def __getitem__(self):
-        features = self.features_frame.iloc[:, 3:-1].values
-        diff = padding_size - features.shape[0]
-        features_zeroes = np.zeros((diff, features.shape[1]))
-#         print (features_zeroes.shape)
-        features = np.append(features, features_zeroes, axis = 0)
-        label = self.features_frame.iloc[1,-1]
+        features = []
+        label = []
+        all_features = self.features_frame.iloc[:, 3:].values
+        diff = sequence_length - all_features.shape[0]
+        if (diff < 0):
+            rows = all_features.shape[0]
+            row_idx = 0
+            while(row_idx + sequence_length <= rows):
+                features.append(all_features[row_idx:row_idx+sequence_length,:])
+                row_idx = row_idx + sequence_length
+                
+            new_diff = sequence_length - (all_features.shape[0] - row_idx)
+            print (new_diff)
+            features_zeroes = np.zeros((new_diff, all_features.shape[1]))
+            second_features = np.append(all_features[row_idx:all_features.shape[0],:], features_zeroes, axis = 0)
+            features.append(second_features)
+            for i in features:
+                print (i.shape)
+                label.append(self.features_frame.iloc[1,-1])
+        else:
+            features_zeroes1 = np.zeros((int(diff/2), all_features.shape[1]))
+            features_zeroes2 = np.zeros((int(diff/2)+1, all_features.shape[1]))
+            features = np.append(all_features, features_zeroes1, axis = 0)
+            if (diff % 2 == 0):
+                features = np.append(features, features_zeroes1, axis = 0)
+            else:
+                features = np.append(features, features_zeroes2, axis = 0)
+            label = self.features_frame.iloc[1,-1]
 #         print (features.shape)
+#         print (features, label)
         return (features, label)
 
 
-# In[6]:
+# In[149]:
+
+
+# data = faceFeatures("./frames_10fps/", "305_P/305_P16.csv").__getitem__()
+# print (data)
+
+
+# In[150]:
 
 
 class concatFrames(Dataset):
@@ -105,10 +136,12 @@ class concatFrames(Dataset):
         for i in range(1, len(self.csv_files)):
 #             print (csv_files[i])
             data = faceFeatures(self.root_dir, self.csv_files[i])
-            self._input = np.vstack((data.__getitem__()[0], self._input))
-            self._label = np.vstack((data.__getitem__()[1], self._label))
+            for f in data.__getitem__()[0]:
+                self._input = np.vstack((f, self._input))
+            for l in data.__getitem__()[1]:
+                self._label = np.vstack((l, self._label))
             
-        self._input = self._input.reshape((len(self.csv_files), padding_size, feature_len))
+        self._input = self._input.reshape((len(self.csv_files), sequence_length, feature_len))
         self._label = self._label.reshape((len(self.csv_files)))
         print (self._input.shape, self._label.shape)
         return (self._input, self._label)
@@ -117,33 +150,42 @@ class concatFrames(Dataset):
     def __getitem__(self, idx):
         frame_name = self.csv_files[idx]
         frame_features = self._input[idx]
-        frameself._label = self._label[idx]
-        return (frame_features, frameself._label) 
+        frame_label = self._label[idx]
+        return (frame_features, frame_label) 
 
 
-# In[7]:
+# In[151]:
+
+
+# file = open("label_dict.pkl", "rb")
+# label_dict = pkl.load(file)
+# print (label_dict)
+
+
+# In[152]:
 
 
 print ("Training data preprocessing....")
 # csv_files = ["300_P_new/300_P1.csv", "302_P_new/302_P2.csv","300_P_new/300_P2.csv"]
 csv_files_train = []
-for filename in os.listdir("./dataset/USC/bad_frames/frames/frames_with_label"):
+for filename in os.listdir("./frames_10fps"):
     if filename != "test": 
-        for framefile in os.listdir("./dataset/USC/bad_frames/frames/frames_with_label/"+filename):
+        for framefile in os.listdir("./frames_10fps/"+filename):
             file = filename + "/" + framefile
             csv_files_train.append(file)
-# print (csv_files)
-_input = np.zeros((padding_size, feature_len), dtype="float32")
+            
+# print (csv_files_train)
+_input = np.zeros((sequence_length, feature_len), dtype="float32")
 _label = np.ones((1), dtype="int32")
 
-data = concatFrames(root_dir = "./dataset/USC/bad_frames/frames/frames_with_label/", csv_files = csv_files_train, _input = _input, _label = _label)
+data = concatFrames(root_dir = "./frames_10fps/", csv_files = csv_files_train[0:10], _input = _input, _label = _label)
 _input, _label = data._concat_()
 _input_train = torch.Tensor(np.array(_input))
 _label_train = torch.Tensor(np.array(_label))
 _label_train = (_label_train.type(torch.LongTensor))
 
-torch.save(_input_train, "input_train.pt")
-torch.save(_label_train, "label_train.pt")
+# torch.save(_input_train, "input_train.pt")
+# torch.save(_label_train, "label_train.pt")
 
 # print (data.__getitem__(0))
 
