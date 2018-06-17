@@ -1,0 +1,10 @@
+sequence_length = 300
+input_size = 378
+hidden_size = 64
+num_layers = 2
+num_classes = 2 # Depressed or not depressed
+batch_size = 50
+num_epochs = 10
+learning_rate = 0.001
+rec_dropout = 0.05
+feature_len = 378
