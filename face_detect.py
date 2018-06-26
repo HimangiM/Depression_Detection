@@ -24,7 +24,7 @@ def read_face(path):
     faces = haar_face_cascade.detectMultiScale(test, scaleFactor=1.05, minNeighbors=5)
     print ("Faces", len(faces))
     for (x,y,w,h) in faces:
-        cv2.rectangle(test1, (x,y), (x+w, y+h), (0, 255, 0), 1)
+        cv2.rectangle(test, (x,y), (x+w, y+h), (0, 255, 0), 1)
         print (x, y, w, h)
     img = test[y:y+h-1, x:x+w-1]
     plt.imshow(img)
