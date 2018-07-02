@@ -1,3 +1,9 @@
+
+# coding: utf-8
+
+# In[56]:
+
+
 import torch
 import numpy as np
 import os
@@ -12,14 +18,22 @@ import pdb
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 import operator
 
+
+# In[57]:
+
+
 input_size = 4096
 max_image_size = 71
 
-direc = "/home/himangi/Bosch/CEK/CEK_64_64_augmented_class_duplicate"
+direc = "/home/intern_eyecare/Emotion data/CEK+/CEK_flip_augment"
 l = []
 
+
+# In[58]:
+
+
 def check_label(session, video):
-	file = "/home/himangi/Bosch/CEK/label_path.csv"
+	file = "/home/intern_eyecare/Emotion data/CEK+/label_path.csv"
 	with open(file, "r") as infile:
 		infile.readline()
 		for line in infile.readlines():
@@ -31,38 +45,51 @@ def check_label(session, video):
 	return None
 
 
+# In[59]:
+
+
 res = check_label("S010", "004A")
 print (res)
 
 
+# In[103]:
+
+
 class image_data(Dataset):
-	def __init__(self, session, video):
-		self.session = session
-		self.video = video
-	def __getitem__(self):
-		if (check_label(self.session, self.video) != None):
-			feature = np.empty((input_size,))
-			first_image = 0
-			c = 0
-			for image in os.listdir(direc + "/" + self.session + "/" + self.video):
-				img = Image.open(direc + "/" + self.session + "/" + self.video + "/" + image)
-				img_ = np.array(img).flatten()
-				img = [i/255 for i in img_]
-#                 print (img.shape, feature.shape)
-				feature = np.vstack((feature, img))
-				if first_image == 0:
-					first_image = 1
-					feature = np.delete(feature, 0, 0)
-				c = c+1
-			label = check_label(self.session, self.video)
-			video_len = c
-			return (feature, int(label), video_len) 
-		else:
-			return None
+    def __init__(self, session, video):
+        self.session = session
+        self.video = video
+    def __getitem__(self):
+        if (check_label(self.session, self.video) != None):
+            feature = np.empty((input_size,))
+            first_image = 0
+            c = 0
+            for image in os.listdir(direc + "/" + self.session + "/" + self.video):
+                img = Image.open(direc + "/" + self.session + "/" + self.video + "/" + image)
+                img = np.array(img)                
+                img_ = np.array(img).flatten()
+                img = [i for i in img_]
+                feature = np.vstack((feature, img))
+                if first_image == 0:
+                    first_image = 1
+                    feature = np.delete(feature, 0, 0)
+                c = c+1
+            label = check_label(self.session, self.video)
+            video_len = c
+            return (feature, int(label), video_len) 
+        else:
+            return None
+
+
+# In[104]:
 
 
 data = image_data("S010", "004A").__getitem__()
-print (data[0].shape, data[1], data[2])
+# print (data[0].shape, data[1], data[2])
+
+
+# In[105]:
+
 
 first_vid = 0
 _label = np.ones((1), dtype="int32")
@@ -96,5 +123,10 @@ label = torch.Tensor(np.array(label))
 
 print (feature.shape, label.shape)
 
-torch.save(feature, "feature_cek_64_aug_class_dup_norm.pt")
-torch.save(label, "label_cek_64_aug_class_dup_norm.pt")
+
+# In[106]:
+
+
+torch.save(feature, "feature_cek_64_aug_class_flip_norm.pt")
+torch.save(label, "label_cek_64_aug_class_flip_norm.pt")
+
