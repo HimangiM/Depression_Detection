@@ -15,8 +15,8 @@ from PIL import Image
 
 
 input_size = 4096
-direc = "/home/intern_eyecare/Emotion data/CEK+/Emotion/validation"
-directory = "/home/intern_eyecare/Emotion data/CEK+/CEK_64_64_augmented_class_duplicate/validation"
+direc = "/home/himangi/Bosch/CEK/Emotion/validation"
+directory = "/home/himangi/Bosch/CEK/CEK_64_64_augmented_class_duplicate/validation"
 
 
 # In[93]:
@@ -27,16 +27,10 @@ def check_label(session, video):
         for file in os.listdir(direc + "/" + session + "/" + video):
             f = open(direc + "/" + session + "/" + video + "/" + file, "r")
             label = int(float(f.read().strip()))
-            print (label)
+            # print (label)
             return label
     
     return None
-
-
-# In[87]:
-
-
-print (check_label("S108", "002"))
 
 
 # In[94]:
@@ -75,25 +69,36 @@ class image_data(Dataset):
 
 
 first_vid = 0
+_label = np.ones((1), dtype="int32")
+
 for file in os.listdir(directory):
     for video in os.listdir(directory + "/" + file):
         data = image_data(file, video).__getitem__()
         if (data == None):
+            print ("None")
             print (file, video)
         else:
             if first_vid == 0:
                 data = image_data(file, video).__getitem__()
                 feature = data[0]
-                label = data[1]
+                _label = data[1]
                 feature = np.array(feature)
-                label = np.array(label)
+                _label = np.array(_label)
                 feature = feature.reshape(1, feature.shape[0], feature.shape[1])
                 first_vid = 1
-                print (feature.shape, label.shape)
+                print (feature.shape, _label.shape)
             else:
                 data = image_data(file, video).__getitem__()
-                feature  = np.vstack((data[0]))
-                label = np.vstack((label))
-            
-                
+                print ("Here", data[0].shape)
+                f = data[0]
+                f = np.array(f)
+                f = f.reshape(1, f.shape[0], f.shape[1])
+                feature  = np.vstack((feature, f))
+                label = data[1]
+                _label = np.vstack((_label, label))
 
+feature = torch.Tensor(feature)
+_label = torch.Tensor(_label)            
+print (feature.shape, _label.shape)
+torch.save(feature, "feature_vali_cek_64_aug_class_dup_norm.pt")
+torch.save(_label, "label_vali_cek_64_aug_class_dup_norm.pt")
